@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calendar Vault</title>
+<style>
+  :root {
+    --paper: #f7f4ec;
+    --paper-raised: #ffffff;
+    --ink: #23262b;
+    --ink-soft: #5b5f66;
+    --line: #ddd7c8;
+    --pine: #3f5d4f;
+    --pine-soft: #e4ece7;
+    --rust: #9c4a2e;
+    --rust-soft: #f3e1d9;
+    --gold: #b6892f;
+    --gold-soft: #f4e9d2;
+    --shadow: 0 2px 10px rgba(35,38,43,0.08);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+
+  header.top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 22px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+  }
+
+  header.top .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  header.top h1 {
+    font-size: 26px;
+    margin: 0;
+    letter-spacing: 0.3px;
+  }
+  header.top .tagline {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    font-family: -apple-system, "Segoe UI", sans-serif;
+  }
+  .toolbar input[type="text"] {
+    font-family: inherit;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper-raised);
+    min-width: 220px;
+    font-size: 13px;
+  }
+  .toolbar select {
+    font-family: inherit;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper-raised);
+    font-size: 13px;
+  }
+  .toolbar button {
+    font-family: inherit;
+    padding: 8px 16px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    background: var(--ink);
+    color: var(--paper);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .toolbar button.ghost {
+    background: transparent;
+    color: var(--ink);
+  }
+
+  .month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 20px 0 12px;
+    font-family: -apple-system, "Segoe UI", sans-serif;
+  }
+  .month-nav h2 {
+    font-family: Georgia, serif;
+    font-size: 20px;
+    margin: 0;
+  }
+  .month-nav .nav-buttons button {
+    font-family: inherit;
+    border: 1px solid var(--line);
+    background: var(--paper-raised);
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    margin-left: 6px;
+  }
+  .month-nav .nav-buttons button:hover { border-color: var(--ink); }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot.event { background: var(--pine); }
+  .dot.deadline { background: var(--rust); }
+  .dot.keepsake { background: var(--gold); }
+  .dot.holiday { background: #c9c2ac; border: 1px solid #a89d7c; }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+  }
+  .dow {
+    background: var(--ink);
+    color: var(--paper);
+    text-align: center;
+    padding: 8px 0;
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .day-cell {
+    background: var(--paper-raised);
+    min-height: 108px;
+    padding: 6px 6px 8px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.12s ease;
+  }
+  .day-cell:hover { background: #fbfaf6; }
+  .day-cell.other-month { background: #f1efe6; color: #b7b2a3; }
+  .day-cell.today { outline: 2px solid var(--pine); outline-offset: -2px; }
+  .day-num {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .holiday-tag {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    font-size: 9.5px;
+    color: var(--ink-soft);
+    background: var(--gold-soft);
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-top: 3px;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .entry-chip {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    font-size: 10.5px;
+    border-radius: 3px;
+    padding: 2px 5px;
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--ink);
+  }
+  .entry-chip.event { background: var(--pine-soft); }
+  .entry-chip.deadline { background: var(--rust-soft); }
+  .entry-chip.keepsake { background: var(--gold-soft); }
+  .more-chip {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    font-size: 10px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+
+  .results-banner {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: var(--pine-soft);
+    border: 1px solid var(--pine);
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .results-banner button {
+    font-family: inherit;
+    border: none;
+    background: none;
+    color: var(--pine);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .results-list { display: flex; flex-direction: column; gap: 8px; }
+  .result-row {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    font-size: 13px;
+  }
+  .result-row:hover { border-color: var(--ink); }
+  .result-row .r-date { color: var(--ink-soft); font-size: 12px; }
+
+  /* Modal */
+  .backdrop {
+    position: fixed; inset: 0;
+    background: rgba(35,38,43,0.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal {
+    background: var(--paper-raised);
+    width: 460px;
+    max-width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 6px;
+    padding: 26px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+    font-family: -apple-system, "Segoe UI", sans-serif;
+  }
+  .modal h2 {
+    font-family: Georgia, serif;
+    margin: 0 0 16px;
+    font-size: 19px;
+  }
+  .field { margin-bottom: 13px; }
+  .field label {
+    display: block;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .field input[type=text], .field input[type=date], .field select, .field textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13.5px;
+    background: var(--paper);
+  }
+  .field textarea { resize: vertical; }
+  .field-row { display: flex; gap: 10px; }
+  .field-row .field { flex: 1; }
+
+  .type-picker { display: flex; gap: 6px; }
+  .type-picker button {
+    flex: 1;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 7px 0;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper);
+    cursor: pointer;
+  }
+  .type-picker button.active.event { background: var(--pine); color: white; border-color: var(--pine); }
+  .type-picker button.active.deadline { background: var(--rust); color: white; border-color: var(--rust); }
+  .type-picker button.active.keepsake { background: var(--gold); color: white; border-color: var(--gold); }
+
+  .files-block {
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+    margin-top: 6px;
+  }
+  .files-block .fb-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .files-block .fb-head strong { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-soft); }
+  .files-block input[type=file] { display: none; }
+  .attach-btn {
+    font-family: inherit;
+    font-size: 12px;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper);
+    cursor: pointer;
+  }
+  .file-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px;
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+  }
+  .file-row .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-row .fsize { color: var(--ink-soft); font-size: 11px; }
+  .file-row button {
+    border: none; background: none; color: var(--rust); cursor: pointer; font-size: 11.5px;
+  }
+  .note-small { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; }
+
+  .modal-actions {
+    display: flex; align-items: center; gap: 8px; margin-top: 18px;
+  }
+  .modal-actions .spacer { flex: 1; }
+  .modal-actions button {
+    font-family: inherit;
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .modal-actions .primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .modal-actions .danger { color: var(--rust); border-color: var(--rust-soft); background: var(--rust-soft); }
+
+  footer.foot {
+    margin-top: 30px;
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="brand">
+      <h1>Super Calendar Vault</h1>
+      <span class="tagline">for personal use &amp; deadlines</span>
+    </div>
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="Search titles, notes, tags…" />
+      <select id="typeFilter">
+        <option value="all">All types</option>
+        <option value="event">Events</option>
+        <option value="deadline">Deadlines</option>
+        <option value="keepsake">Keepsakes</option>
+        <option value="holiday">PH Holidays</option>
+      </select>
+      <button class="ghost" id="searchBtn">Search</button>
+      <button id="newEntryBtn">+ New entry</button>
+    </div>
+  </header>
+
+  <div id="resultsBanner" class="results-banner" style="display:none;">
+    <span id="resultsText"></span>
+    <button id="clearSearchBtn">Clear</button>
+  </div>
+
+  <div id="calendarWrap">
+    <div class="month-nav">
+      <h2 id="monthLabel"></h2>
+      <div class="nav-buttons">
+        <button id="prevBtn">‹ Prev</button>
+        <button id="todayBtn">Today</button>
+        <button id="nextBtn">Next ›</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="dot event"></i> Event</span>
+      <span><i class="dot deadline"></i> Deadline</span>
+      <span><i class="dot keepsake"></i> Keepsake</span>
+      <span><i class="dot holiday"></i> PH Holiday</span>
+    </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+  </div>
+
+  <div id="resultsList" class="results-list" style="display:none;"></div>
+
+  <footer class="foot">
+    Data is stored locally in this browser (no server, no internet). Back up
+    by using Export below the entry list, or by copying this file together
+    with your browser's data.
+  </footer>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+/* ---------------- Data layer (localStorage) ---------------- */
+const STORAGE_KEY = "calendarVault.entries.v1";
+let entries = [];
+try {
+  entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+} catch (e) {
+  entries = [];
+}
+function persist() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+  catch (e) { console.warn("Could not save to localStorage:", e); }
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+/* ---------------- PH Holidays (Proclamation No. 1006 s.2025 + Eid proclamations) ---------------- */
+const HOLIDAYS = {
+  "2026": [
+    { date: "2026-01-01", name: "New Year's Day", type: "regular" },
+    { date: "2026-02-17", name: "Chinese New Year", type: "special" },
+    { date: "2026-02-25", name: "EDSA Anniversary (special working)", type: "working" },
+    { date: "2026-03-20", name: "Eid'l Fitr", type: "regular" },
+    { date: "2026-04-02", name: "Maundy Thursday", type: "regular" },
+    { date: "2026-04-03", name: "Good Friday", type: "regular" },
+    { date: "2026-04-04", name: "Black Saturday", type: "special" },
+    { date: "2026-04-09", name: "Araw ng Kagitingan", type: "regular" },
+    { date: "2026-05-01", name: "Labor Day", type: "regular" },
+    { date: "2026-05-27", name: "Eid'l Adha", type: "regular" },
+    { date: "2026-06-12", name: "Independence Day", type: "regular" },
+    { date: "2026-08-21", name: "Ninoy Aquino Day", type: "special" },
+    { date: "2026-08-31", name: "National Heroes Day", type: "regular" },
+    { date: "2026-11-01", name: "All Saints' Day", type: "special" },
+    { date: "2026-11-02", name: "All Souls' Day", type: "special" },
+    { date: "2026-11-30", name: "Bonifacio Day", type: "regular" },
+    { date: "2026-12-08", name: "Feast of the Immaculate Conception", type: "special" },
+    { date: "2026-12-24", name: "Christmas Eve", type: "special" },
+    { date: "2026-12-25", name: "Christmas Day", type: "regular" },
+    { date: "2026-12-30", name: "Rizal Day", type: "regular" },
+    { date: "2026-12-31", name: "Last Day of the Year", type: "special" }
+  ]
+};
+function holidayFor(dateStr) {
+  const year = dateStr.slice(0, 4);
+  const list = HOLIDAYS[year] || [];
+  return list.find(h => h.date === dateStr) || null;
+}
+
+/* ---------------- Calendar state & rendering ---------------- */
+let viewYear, viewMonth; // viewMonth 0-indexed
+(function initToday() {
+  const now = new Date();
+  viewYear = now.getFullYear();
+  viewMonth = now.getMonth();
+})();
+
+function fmtDate(y, m, d) {
+  const mm = String(m + 1).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  return `${y}-${mm}-${dd}`;
+}
+function todayStr() {
+  const n = new Date();
+  return fmtDate(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+function renderCalendar() {
+  document.getElementById("monthLabel").textContent = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+  const grid = document.getElementById("calendarGrid");
+  grid.innerHTML = "";
+  DOW.forEach(d => {
+    const el = document.createElement("div");
+    el.className = "dow";
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const firstOfMonth = new Date(viewYear, viewMonth, 1);
+  // JS getDay(): 0=Sun..6=Sat. We want Monday-first grid.
+  let startOffset = (firstOfMonth.getDay() + 6) % 7;
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const prevMonthDays = new Date(viewYear, viewMonth, 0).getDate();
+
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) {
+    const dayNum = prevMonthDays - startOffset + 1 + i;
+    const d = new Date(viewYear, viewMonth - 1, dayNum);
+    cells.push({ date: fmtDate(d.getFullYear(), d.getMonth(), d.getDate()), dayNum, otherMonth: true });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ date: fmtDate(viewYear, viewMonth, d), dayNum: d, otherMonth: false });
+  }
+  while (cells.length % 7 !== 0 || cells.length < 42) {
+    const idx = cells.length - (startOffset + daysInMonth);
+    const d = new Date(viewYear, viewMonth + 1, idx);
+    cells.push({ date: fmtDate(d.getFullYear(), d.getMonth(), d.getDate()), dayNum: d.getDate(), otherMonth: true });
+    if (cells.length >= 42) break;
+  }
+
+  const today = todayStr();
+
+  cells.forEach(cell => {
+    const el = document.createElement("div");
+    el.className = "day-cell" + (cell.otherMonth ? " other-month" : "") + (cell.date === today ? " today" : "");
+    el.dataset.date = cell.date;
+
+    const numRow = document.createElement("div");
+    numRow.className = "day-num";
+    numRow.innerHTML = `<span>${cell.dayNum}</span>`;
+    el.appendChild(numRow);
+
+    const holiday = holidayFor(cell.date);
+    if (holiday) {
+      const tag = document.createElement("div");
+      tag.className = "holiday-tag";
+      tag.textContent = holiday.name;
+      tag.title = holiday.name;
+      el.appendChild(tag);
+    }
+
+    const dayEntries = entries.filter(e => e.date === cell.date);
+    const shown = dayEntries.slice(0, 2);
+    shown.forEach(entry => {
+      const chip = document.createElement("div");
+      chip.className = "entry-chip " + entry.type;
+      chip.textContent = entry.title + (entry.files && entry.files.length ? ` 📎${entry.files.length}` : "");
+      chip.title = entry.title;
+      chip.addEventListener("click", (ev) => { ev.stopPropagation(); openEditModal(entry.id); });
+      el.appendChild(chip);
+    });
+    if (dayEntries.length > shown.length) {
+      const more = document.createElement("div");
+      more.className = "more-chip";
+      more.textContent = `+${dayEntries.length - shown.length} more`;
+      el.appendChild(more);
+    }
+
+    el.addEventListener("click", () => openNewModal(cell.date));
+    grid.appendChild(el);
+  });
+}
+
+document.getElementById("prevBtn").addEventListener("click", () => {
+  viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+  renderCalendar();
+});
+document.getElementById("nextBtn").addEventListener("click", () => {
+  viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  renderCalendar();
+});
+document.getElementById("todayBtn").addEventListener("click", () => {
+  const n = new Date(); viewYear = n.getFullYear(); viewMonth = n.getMonth();
+  renderCalendar();
+});
+
+/* ---------------- Search ---------------- */
+function getAllHolidaysFlat() {
+  const out = [];
+  Object.keys(HOLIDAYS).forEach(year => {
+    HOLIDAYS[year].forEach(h => out.push(h));
+  });
+  return out;
+}
+
+function runSearch(query, typeFilter) {
+  const q = query.trim().toLowerCase();
+  const includeEntries = typeFilter === "all" || ["event", "deadline", "keepsake"].includes(typeFilter);
+  const includeHolidays = typeFilter === "all" || typeFilter === "holiday";
+  let results = [];
+
+  if (includeEntries) {
+    let ents = entries;
+    if (q) {
+      ents = ents.filter(e =>
+        e.title.toLowerCase().includes(q) ||
+        (e.notes || "").toLowerCase().includes(q) ||
+        (e.tags || "").toLowerCase().includes(q)
+      );
+    }
+    if (typeFilter !== "all" && typeFilter !== "holiday") {
+      ents = ents.filter(e => e.type === typeFilter);
+    }
+    results.push(...ents.map(e => ({ ...e, _kind: "entry" })));
+  }
+
+  if (includeHolidays) {
+    let hols = getAllHolidaysFlat();
+    if (q) hols = hols.filter(h => h.name.toLowerCase().includes(q));
+    results.push(...hols.map(h => ({ ...h, _kind: "holiday" })));
+  }
+
+  return results.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+const HOLIDAY_TYPE_LABEL = { regular: "Regular holiday", special: "Special non-working", working: "Special working day" };
+
+function showResults(results, query) {
+  document.getElementById("calendarWrap").style.display = "none";
+  const list = document.getElementById("resultsList");
+  const banner = document.getElementById("resultsBanner");
+  banner.style.display = "flex";
+  document.getElementById("resultsText").textContent =
+    `${results.length} result${results.length === 1 ? "" : "s"} for "${query}"`;
+  list.style.display = "flex";
+  list.innerHTML = "";
+  results.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "result-row";
+    if (item._kind === "holiday") {
+      row.innerHTML = `<span><i class="dot holiday" style="margin-right:6px;"></i>${escapeHtml(item.name)}</span><span class="r-date">${item.date} · ${HOLIDAY_TYPE_LABEL[item.type] || "Holiday"}</span>`;
+      row.addEventListener("click", () => {
+        const [y, m] = item.date.split("-").map(Number);
+        viewYear = y; viewMonth = m - 1;
+        hideResults();
+        document.getElementById("searchInput").value = "";
+        renderCalendar();
+      });
+    } else {
+      row.innerHTML = `<span>${escapeHtml(item.title)}${item.files && item.files.length ? ` 📎${item.files.length}` : ""}</span><span class="r-date">${item.date} · ${item.type}</span>`;
+      row.addEventListener("click", () => openEditModal(item.id));
+    }
+    list.appendChild(row);
+  });
+}
+function hideResults() {
+  document.getElementById("calendarWrap").style.display = "";
+  document.getElementById("resultsBanner").style.display = "none";
+  document.getElementById("resultsList").style.display = "none";
+}
+
+document.getElementById("searchBtn").addEventListener("click", doSearch);
+document.getElementById("searchInput").addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
+document.getElementById("typeFilter").addEventListener("change", doSearch);
+document.getElementById("clearSearchBtn").addEventListener("click", () => {
+  document.getElementById("searchInput").value = "";
+  hideResults();
+});
+function doSearch() {
+  const q = document.getElementById("searchInput").value;
+  const t = document.getElementById("typeFilter").value;
+  if (!q.trim() && t === "all") { hideResults(); return; }
+  showResults(runSearch(q, t), q.trim() || "(all)");
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+/* ---------------- Modal ---------------- */
+const MAX_EMBED_BYTES = 3 * 1024 * 1024; // 3MB per file cap for embedding as data URL
+
+function openNewModal(dateStr) {
+  renderModal(null, dateStr);
+}
+function openEditModal(id) {
+  const entry = entries.find(e => e.id === id);
+  if (entry) renderModal(entry, null);
+}
+
+function renderModal(entry, defaultDate) {
+  const isNew = !entry;
+  const draft = entry ? JSON.parse(JSON.stringify(entry)) : {
+    id: uid(), title: "", date: defaultDate, type: "event", notes: "", tags: "", files: []
+  };
+
+  const root = document.getElementById("modalRoot");
+  root.innerHTML = `
+    <div class="backdrop" id="backdrop">
+      <div class="modal">
+        <h2>${isNew ? "New entry" : "Edit entry"}</h2>
+        <div class="field">
+          <label>Title</label>
+          <input type="text" id="f-title" value="${escapeHtml(draft.title)}" placeholder="e.g. Thesis draft due" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="f-date" value="${draft.date}" />
+          </div>
+          <div class="field">
+            <label>Type</label>
+            <div class="type-picker" id="typePicker">
+              <button type="button" data-type="event" class="event">Event</button>
+              <button type="button" data-type="deadline" class="deadline">Deadline</button>
+              <button type="button" data-type="keepsake" class="keepsake">Keepsake</button>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <textarea id="f-notes" rows="3">${escapeHtml(draft.notes)}</textarea>
+        </div>
+        <div class="field">
+          <label>Tags (comma-separated)</label>
+          <input type="text" id="f-tags" value="${escapeHtml(draft.tags)}" placeholder="thesis, school, urgent" />
+        </div>
+
+        <div class="files-block">
+          <div class="fb-head">
+            <strong>Files</strong>
+            <label class="attach-btn" for="fileInput">+ Attach file</label>
+            <input type="file" id="fileInput" />
+          </div>
+          <div id="fileList"></div>
+          <p class="note-small">Files under 3MB are embedded and downloadable later. Larger files are listed by name only — keep the original somewhere safe and re-attach a smaller copy or a reference note.</p>
+        </div>
+
+        <div class="modal-actions">
+          ${isNew ? "" : `<button class="danger" id="deleteBtn">Delete</button>`}
+          <div class="spacer"></div>
+          <button id="cancelBtn">Cancel</button>
+          <button class="primary" id="saveBtn">Save</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Type picker state
+  const typeButtons = root.querySelectorAll("#typePicker button");
+  function setType(t) {
+    draft.type = t;
+    typeButtons.forEach(b => b.classList.toggle("active", b.dataset.type === t));
+  }
+  setType(draft.type);
+  typeButtons.forEach(b => b.addEventListener("click", () => setType(b.dataset.type)));
+
+  function renderFileList() {
+    const wrap = root.querySelector("#fileList");
+    wrap.innerHTML = "";
+    if (!draft.files.length) {
+      wrap.innerHTML = `<p class="note-small" style="margin:0 0 6px;">No files attached yet.</p>`;
+      return;
+    }
+    draft.files.forEach((f, idx) => {
+      const row = document.createElement("div");
+      row.className = "file-row";
+      const sizeKb = (f.size / 1024).toFixed(0);
+      row.innerHTML = `
+        <span class="fname" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
+        <span class="fsize">${sizeKb}KB${f.embedded ? "" : " · not embedded"}</span>
+        ${f.embedded ? `<button data-action="download" data-idx="${idx}">download</button>` : ""}
+        <button data-action="remove" data-idx="${idx}">remove</button>
+      `;
+      wrap.appendChild(row);
+    });
+    wrap.querySelectorAll("button[data-action='remove']").forEach(btn => {
+      btn.addEventListener("click", () => {
+        draft.files.splice(Number(btn.dataset.idx), 1);
+        renderFileList();
+      });
+    });
+    wrap.querySelectorAll("button[data-action='download']").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const f = draft.files[Number(btn.dataset.idx)];
+        const a = document.createElement("a");
+        a.href = f.dataUrl;
+        a.download = f.name;
+        a.click();
+      });
+    });
+  }
+  renderFileList();
+
+  root.querySelector("#fileInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size <= MAX_EMBED_BYTES) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        draft.files.push({ name: file.name, size: file.size, embedded: true, dataUrl: reader.result });
+        renderFileList();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      draft.files.push({ name: file.name, size: file.size, embedded: false, dataUrl: null });
+      renderFileList();
+    }
+    e.target.value = "";
+  });
+
+  root.querySelector("#backdrop").addEventListener("click", (e) => {
+    if (e.target.id === "backdrop") closeModal();
+  });
+  root.querySelector("#cancelBtn").addEventListener("click", closeModal);
+
+  root.querySelector("#saveBtn").addEventListener("click", () => {
+    draft.title = root.querySelector("#f-title").value.trim();
+    draft.date = root.querySelector("#f-date").value;
+    draft.notes = root.querySelector("#f-notes").value;
+    draft.tags = root.querySelector("#f-tags").value;
+    if (!draft.title || !draft.date) {
+      alert("Title and date are required.");
+      return;
+    }
+    const existingIdx = entries.findIndex(e => e.id === draft.id);
+    if (existingIdx >= 0) entries[existingIdx] = draft;
+    else entries.push(draft);
+    persist();
+    closeModal();
+    renderCalendar();
+    if (document.getElementById("resultsBanner").style.display !== "none") doSearch();
+  });
+
+  if (!isNew) {
+    root.querySelector("#deleteBtn").addEventListener("click", () => {
+      if (!confirm("Delete this entry?")) return;
+      entries = entries.filter(e => e.id !== draft.id);
+      persist();
+      closeModal();
+      renderCalendar();
+      if (document.getElementById("resultsBanner").style.display !== "none") doSearch();
+    });
+  }
+}
+
+function closeModal() {
+  document.getElementById("modalRoot").innerHTML = "";
+}
+
+document.getElementById("newEntryBtn").addEventListener("click", () => openNewModal(todayStr()));
+
+/* ---------------- Init ---------------- */
+renderCalendar();
+</script>
+</body>
+</html>
